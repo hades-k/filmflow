@@ -1,53 +1,114 @@
-# FilmFlow - Decision Analytics Engine
+# 🎬 FilmFlow - Decision Analytics Engine
 
-A Progressive Web App (PWA) for tracking and analyzing your movie decision-making process. Built with React, Firebase, and deployed on Firebase Hosting.
+> Track, analyze, and visualize your movie decision-making process with beautiful real-time analytics.
 
-## Features
+A Progressive Web App that helps you understand your movie selection patterns, identify decision fatigue, and optimize your viewing choices through data-driven insights.
 
-- 📱 Progressive Web App - Install on any device
-- 🔐 Firebase Authentication (Anonymous)
-- 💾 Cloud Firestore for data storage
-- 📊 Real-time analytics and visualizations
-- 🎨 Beautiful, cinematic UI
-- ⚡ Offline support with service workers
+[![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=flat&logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)](https://vitejs.dev/)
 
-## Prerequisites
+## 📸 Screenshots
 
-- Node.js (v18 or higher)
-- Firebase CLI: `npm install -g firebase-tools`
-- A Firebase project (free tier works perfectly)
+<!-- Add screenshots here after deployment -->
+*Coming soon - screenshots of the analytics dashboard, charts, and mobile views*
 
-## Firebase Setup
+## 🎯 Demo
 
-### 1. Create a Firebase Project
+🔗 **Live Demo**: [https://your-project-id.web.app](https://your-project-id.web.app)
+
+> Replace with your actual Firebase Hosting URL after deployment
+
+## ✨ Features
+
+### 📊 Analytics & Insights
+- **Decision Time Tracking** - Monitor how long it takes to pick a movie
+- **Trend Analysis** - See if you're getting faster or slower over time
+- **Fatigue Score** - Identify decision fatigue patterns (0-10 scale)
+- **Temporal Distribution** - Discover which days you take longest to decide
+- **Visual Charts** - Beautiful area and bar charts with Recharts
+
+### 🔐 Authentication & Security
+- **Google Sign-In** - Secure authentication via Firebase Auth
+- **User Isolation** - Each user's data is completely private
+- **Firestore Rules** - Server-side security enforcement
+- **Safari Compatible** - Fixed React hooks for Safari/iOS support
+
+### 📱 Progressive Web App
+- **Install Anywhere** - Works on desktop, mobile, and tablet
+- **Offline Support** - Service workers cache data for offline viewing
+- **Responsive Design** - Beautiful UI that adapts to any screen size
+- **Fast Loading** - Optimized with Vite for instant page loads
+
+### 🎨 User Experience
+- **Cinematic Design** - Film-inspired aesthetic with grain effects
+- **Smooth Animations** - Framer Motion for delightful interactions
+- **Dark Theme** - Easy on the eyes for late-night browsing
+- **Real-time Updates** - Instant feedback on all actions
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js** v18 or higher ([Download](https://nodejs.org/))
+- **Firebase CLI**: `npm install -g firebase-tools`
+- **Firebase Account** (free tier works perfectly)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/filmflow.git
+cd filmflow
+
+# Install dependencies
+npm install
+
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your Firebase credentials
+# (See Firebase Setup section below)
+
+# Start development server
+npm run dev
+```
+
+Visit `http://localhost:5173` and you're ready to go! 🎉
+
+## 🔥 Firebase Setup
+
+### 1. Create Firebase Project
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click "Add project"
-3. Follow the setup wizard
-4. Enable Google Analytics (optional)
+2. Click **"Add project"**
+3. Enter project name (e.g., "filmflow")
+4. Follow the setup wizard
 
-### 2. Enable Firebase Services
+### 2. Enable Authentication
 
-#### Enable Authentication:
-1. In Firebase Console, go to "Authentication"
-2. Click "Get started"
-3. Go to "Sign-in method" tab
-4. Enable "Anonymous" authentication
+1. Navigate to **Authentication** → **Get started**
+2. Go to **Sign-in method** tab
+3. Enable **Google** provider
+4. Add your domain to **Authorized domains** (for production)
 
-#### Enable Firestore:
-1. In Firebase Console, go to "Firestore Database"
-2. Click "Create database"
-3. Start in "production mode"
-4. Choose a location close to your users
-5. Update Firestore rules:
+### 3. Enable Firestore Database
+
+1. Navigate to **Firestore Database** → **Create database**
+2. Start in **production mode**
+3. Choose a location close to your users
+4. Go to **Rules** tab and paste:
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /sessions/{sessionId} {
-      allow read, write: if request.auth != null && 
-                          request.auth.uid == resource.data.userId;
+      allow read: if request.auth != null && 
+                     request.auth.uid == resource.data.userId;
+      allow write: if request.auth != null && 
+                      request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && 
                        request.auth.uid == request.resource.data.userId;
     }
@@ -55,78 +116,207 @@ service cloud.firestore {
 }
 ```
 
-### 3. Register Web App
+### 4. Create Firestore Index
 
-1. In Firebase Console, click the gear icon → "Project settings"
-2. Scroll to "Your apps" section
-3. Click the web icon (`</>`)
-4. Register your app with a nickname (e.g., "FilmFlow")
-5. Copy the Firebase configuration object
+**Important:** You need a composite index for queries to work.
 
-### 4. Configure Environment Variables
+Click this link after deploying (replace with your project ID):
+```
+https://console.firebase.google.com/project/YOUR_PROJECT_ID/firestore/indexes
+```
 
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
+Or create manually:
+- Collection: `sessions`
+- Fields: `userId` (Ascending), `date` (Descending)
 
-2. Fill in your Firebase configuration from step 3:
-   ```env
-   VITE_FIREBASE_API_KEY=your_api_key_here
-   VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=your_project_id
-   VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-   VITE_FIREBASE_APP_ID=your_app_id
-   ```
+### 5. Register Web App
 
-### 5. Update Firebase Project ID
+1. Go to **Project Settings** (gear icon)
+2. Scroll to **Your apps** → Click web icon (`</>`)
+3. Register app with nickname "FilmFlow"
+4. Copy the config object
 
-Edit `.firebaserc` and replace `your-project-id` with your actual Firebase project ID.
+### 6. Configure Environment
 
-## Local Development
+Edit `.env` with your Firebase config:
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+```env
+VITE_FIREBASE_API_KEY=AIzaSy...
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abc123
+```
 
-2. Start the development server:
-   ```bash
-   npm run dev
-   ```
+Edit `.firebaserc`:
+```json
+{
+  "projects": {
+    "default": "your-project-id"
+  }
+}
+```
 
-3. Open your browser to `http://localhost:5173`
+## 💻 Development
 
-## Deployment to Firebase
+### Available Scripts
 
-### First-time Setup
-
-1. Login to Firebase CLI:
-   ```bash
-   firebase login
-   ```
-
-### Deploy
-
-Deploy to Firebase Hosting:
 ```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Type check
+npm run lint
+
+# Deploy to Firebase
+npm run deploy
+```
+
+### Project Structure
+
+```
+filmflow/
+├── src/
+│   ├── App.tsx              # Main application component
+│   ├── firebase.ts          # Firebase configuration
+│   ├── hooks/
+│   │   └── useAuth.ts       # Authentication hook
+│   ├── services/
+│   │   └── sessionService.ts # Firestore CRUD operations
+│   ├── types.ts             # TypeScript interfaces
+│   └── utils.ts             # Helper functions
+├── public/                  # Static assets
+├── firestore.rules          # Firestore security rules
+├── firebase.json            # Firebase hosting config
+└── .env                     # Environment variables (not in git)
+```
+
+## 🚢 Deployment
+
+### Deploy to Firebase Hosting
+
+```bash
+# Login to Firebase (first time only)
+firebase login
+
+# Build and deploy
 npm run deploy
 ```
 
 Your app will be live at: `https://your-project-id.web.app`
 
-## PWA Features
+### Deploy to Other Platforms
 
-The app uses service workers to cache assets and enable offline functionality. Users can install it on their devices and view previously loaded data even without internet.
+The app is a standard Vite build, so you can deploy to:
+- **Vercel**: `vercel --prod`
+- **Netlify**: Drag `dist/` folder to Netlify
+- **GitHub Pages**: Use `gh-pages` package
 
-## Firebase Free Tier
+## 🛠️ Tech Stack
 
-The app works within Firebase's free tier:
-- Authentication: 10K verifications/month
-- Firestore: 50K reads/day, 20K writes/day, 1 GB storage
-- Hosting: 10 GB storage, 360 MB/day transfer
+- **Frontend**: React 19, TypeScript
+- **Build Tool**: Vite 6
+- **Styling**: Tailwind CSS 4
+- **Charts**: Recharts
+- **Animations**: Framer Motion
+- **Backend**: Firebase (Auth + Firestore)
+- **Hosting**: Firebase Hosting
+- **PWA**: Vite PWA Plugin
 
-## License
+## 📊 How It Works
 
-Apache-2.0
+1. **Sign In** - Authenticate with Google
+2. **Log Sessions** - Record movie title, decision time, and rating
+3. **View Analytics** - See trends, patterns, and fatigue scores
+4. **Track Progress** - Monitor if you're getting faster or slower
+5. **Optimize** - Use insights to improve your decision-making
+
+### Data Tracked
+
+- **Duration**: Time spent deciding (MM:SS format)
+- **Title**: Movie name (optional)
+- **Rating**: Your rating 1-10 (optional)
+- **Date**: When the decision was made
+- **Trends**: Calculated automatically from your history
+
+## 🔒 Security & Privacy
+
+- **User Isolation**: Each user can only access their own data
+- **Firestore Rules**: Server-side security enforcement
+- **No Tracking**: No analytics or third-party tracking
+- **Open Source**: Audit the code yourself
+
+### Are Firebase API Keys Secret?
+
+**No** - Firebase API keys in client code are designed to be public. Security comes from:
+- Firestore security rules (not the API key)
+- Authentication requirements
+- Authorized domains configuration
+
+Read more: [Firebase API Keys Documentation](https://firebase.google.com/docs/projects/api-keys)
+
+## 🐛 Troubleshooting
+
+### "Failed to fetch sessions" Error
+
+Create the required Firestore index:
+1. Check browser console for the index creation link
+2. Click the link and create the index
+3. Wait 1-2 minutes for it to build
+
+### Black Screen After Login (Safari)
+
+This was fixed in the latest version. Make sure you:
+1. Have the latest code
+2. Rebuilt with `npm run build`
+3. Cleared browser cache
+
+### Charts Not Displaying
+
+Charts show "No data to display" until you log your first session. Add a session to see the visualizations.
+
+## 📚 Additional Documentation
+
+- [QUICKSTART.md](./QUICKSTART.md) - Fast setup guide
+- [SETUP.md](./SETUP.md) - Detailed setup instructions
+- [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md) - Pre-deployment checklist
+- [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) - Common issues and solutions
+- [GITHUB_SAFETY_CHECKLIST.md](./GITHUB_SAFETY_CHECKLIST.md) - Security guidelines
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the Apache-2.0 License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Firebase for the excellent backend platform
+- Recharts for beautiful data visualizations
+- The React and Vite communities
+
+## 💬 Support
+
+If you have questions or need help:
+- Open an issue on GitHub
+- Check the [Troubleshooting Guide](./TROUBLESHOOTING.md)
+- Review [Firebase Documentation](https://firebase.google.com/docs)
+
+---
+
+Made with ❤️ for movie lovers who want to optimize their decision-making process.
