@@ -16,3 +16,12 @@ ui-debug.log
 # SQLite (no longer needed)
 *.db
 *.sqlite
+
+# Personal/Development notes (not for public repo)
+CHANGES.md
+FIX_SUMMARY.md
+MIGRATION_SUMMARY.md
+PUSH_TO_GITHUB.md
+TODO.md
+GITHUB_SAFETY_CHECKLIST.md
+generate-icons.md
