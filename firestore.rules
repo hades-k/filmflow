@@ -1,19 +1,64 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Sessions collection - users can only access their own sessions
-    match /sessions/{sessionId} {
-      // Allow read if the user is authenticated and owns the session
+    // Helper function to check if user is in household
+    function isHouseholdMember(householdId) {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/households/$(householdId)) &&
+             request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.members;
+    }
+    
+    // Users collection - users can read/write their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Households collection
+    match /households/{householdId} {
+      // Allow read if user is a member
       allow read: if request.auth != null && 
-                     request.auth.uid == resource.data.userId;
+                     request.auth.uid in resource.data.members;
       
-      // Allow write (update/delete) if the user is authenticated and owns the session
-      allow write: if request.auth != null && 
-                      request.auth.uid == resource.data.userId;
-      
-      // Allow create if the user is authenticated and the userId matches
+      // Allow create if user is authenticated
       allow create: if request.auth != null && 
-                       request.auth.uid == request.resource.data.userId;
+                       request.auth.uid == request.resource.data.createdBy &&
+                       request.auth.uid in request.resource.data.members;
+      
+      // Allow update if user is a member (for adding/removing members)
+      allow update: if request.auth != null && 
+                       request.auth.uid in resource.data.members;
+      
+      // Allow delete if user is the creator and household is empty
+      allow delete: if request.auth != null && 
+                       request.auth.uid == resource.data.createdBy &&
+                       resource.data.members.size() == 0;
+    }
+    
+    // Sessions collection - users can access their own sessions OR household sessions
+    match /sessions/{sessionId} {
+      // Allow read if:
+      // 1. User owns the session, OR
+      // 2. Session belongs to user's household and user is a member
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        (resource.data.householdId != null && isHouseholdMember(resource.data.householdId))
+      );
+      
+      // Allow write (update/delete) if:
+      // 1. User owns the session, OR
+      // 2. Session belongs to user's household and user is a member
+      allow write: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        (resource.data.householdId != null && isHouseholdMember(resource.data.householdId))
+      );
+      
+      // Allow create if:
+      // 1. User is authenticated and userId matches, AND
+      // 2. If householdId is set, user must be a member of that household
+      allow create: if request.auth != null && 
+                       request.auth.uid == request.resource.data.userId &&
+                       (request.resource.data.householdId == null || 
+                        isHouseholdMember(request.resource.data.householdId));
     }
   }
 }

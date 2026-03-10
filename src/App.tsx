@@ -10,16 +10,18 @@ import {
 } from 'recharts';
 import { 
   Film, Clock, TrendingUp, Calendar, AlertCircle, Plus, Trash2, 
-  BarChart3, Info, Star, Pencil, LogOut
+  BarChart3, Info, Star, Pencil, LogOut, Users, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, parseISO } from 'date-fns';
 import { Session, Stats } from './types';
-import { calculateStats, formatDuration, formatDurationDiff } from './utils';
+import { calculateStats, formatDuration, formatDurationDiff, formatTimeWasted } from './utils';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useAuth } from './hooks/useAuth';
 import { getSessions, addSession, updateSession, deleteSession as deleteSessionService } from './services/sessionService';
+import { HouseholdManager } from './components/HouseholdManager';
+import { getUserProfile } from './services/householdService';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -36,6 +38,9 @@ export default function App() {
   const [rating, setRating] = useState('5');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
+  const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [showHouseholdMenu, setShowHouseholdMenu] = useState(false);
+  const [showAllSessions, setShowAllSessions] = useState(false);
 
   // Calculate stats and chart data - MUST be before any early returns
   const stats = useMemo(() => calculateStats(sessions), [sessions]);
@@ -86,8 +91,9 @@ export default function App() {
     const loadSessions = async () => {
       setDataLoading(true);
       try {
-        console.log('Fetching sessions for user:', user.uid);
-        const data = await getSessions(user.uid);
+        console.log('Fetching sessions for user:', user.uid, 'householdId:', householdId);
+        
+        const data = await getSessions(user.uid, householdId || undefined);
         console.log('Sessions fetched:', data.length);
         if (mounted) {
           setSessions(data);
@@ -110,12 +116,12 @@ export default function App() {
     return () => {
       mounted = false;
     };
-  }, [user]);
+  }, [user, householdId]);
 
   const fetchSessions = async () => {
     if (!user) return;
     try {
-      const data = await getSessions(user.uid);
+      const data = await getSessions(user.uid, householdId || undefined);
       setSessions(data);
     } catch (err) {
       console.error('Failed to fetch sessions', err);
@@ -141,7 +147,7 @@ export default function App() {
       if (editingSession) {
         await updateSession(editingSession.id, sessionData);
       } else {
-        await addSession(user.uid, sessionData as any);
+        await addSession(user.uid, sessionData as any, householdId || undefined);
       }
       fetchSessions();
       closeForm();
@@ -267,6 +273,13 @@ export default function App() {
             <span className="text-xs font-bold uppercase tracking-widest">Add Session</span>
           </button>
           <button 
+            onClick={() => setShowHouseholdMenu(true)}
+            className="p-3 rounded-full hover:bg-accent/10 transition-all duration-300"
+            title="Household settings"
+          >
+            <Users size={18} />
+          </button>
+          <button 
             onClick={signOut}
             className="p-3 rounded-full hover:bg-accent/10 transition-all duration-300"
             title="Sign out"
@@ -278,7 +291,7 @@ export default function App() {
 
       <main className="p-8 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
         {/* Stats Grid */}
-        <section className="lg:col-span-12 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <section className="lg:col-span-12 grid grid-cols-1 md:grid-cols-5 gap-6">
           <StatCard 
             label="Mean Duration" 
             value={stats ? formatDuration(stats.mean) : '--'} 
@@ -288,6 +301,12 @@ export default function App() {
             label="Median Duration" 
             value={stats ? formatDuration(stats.median) : '--'} 
             icon={<BarChart3 size={18} />}
+          />
+          <StatCard 
+            label="The Scroll Toll" 
+            value={stats ? formatTimeWasted(stats.totalTimeWasted) : '--'} 
+            icon={<Clock size={18} />}
+            subValue="Total time spent deciding"
           />
           <StatCard 
             label="Trend" 
@@ -443,7 +462,7 @@ export default function App() {
         <div className="lg:col-span-4 space-y-6">
           <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] opacity-30 px-2">Log History</h3>
           <div className="space-y-4">
-            {sessions.map(session => (
+            {(showAllSessions ? sessions : sessions.slice(0, 7)).map(session => (
               <motion.div 
                 layout
                 key={session.id}
@@ -482,6 +501,14 @@ export default function App() {
                 </div>
               </motion.div>
             ))}
+            {sessions.length > 7 && !showAllSessions && (
+              <button
+                onClick={() => setShowAllSessions(true)}
+                className="w-full py-4 text-center text-xs font-mono uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity border-2 border-dashed border-border rounded-2xl hover:border-accent/20"
+              >
+                Show More ({sessions.length - 7} hidden)
+              </button>
+            )}
             {sessions.length === 0 && (
               <div className="text-center py-20 border-2 border-dashed border-border rounded-[2rem]">
                 <Film className="mx-auto opacity-10 mb-4" size={40} />
@@ -491,6 +518,53 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* Household Menu Modal */}
+      <AnimatePresence>
+        {showHouseholdMenu && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowHouseholdMenu(false)}
+              className="absolute inset-0 bg-bg/90 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 40 }}
+              className="relative bg-card border border-border w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)]"
+            >
+              <div className="p-10 border-b border-border flex justify-between items-start">
+                <div>
+                  <h2 className="text-4xl font-serif italic tracking-tighter">Household</h2>
+                  <p className="text-[10px] font-mono opacity-30 uppercase tracking-widest mt-2">Manage shared access</p>
+                </div>
+                <button 
+                  onClick={() => setShowHouseholdMenu(false)}
+                  className="p-2 hover:bg-accent/10 rounded-xl transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-10">
+                <HouseholdManager 
+                  userId={user.uid}
+                  userEmail={user.email || ''}
+                  userDisplayName={user.displayName || 'User'}
+                  onHouseholdChange={(newHouseholdId) => {
+                    setHouseholdId(newHouseholdId);
+                    // Reload sessions when household changes
+                    fetchSessions();
+                  }}
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Log Form Modal */}
       <AnimatePresence>
