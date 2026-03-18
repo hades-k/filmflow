@@ -10,18 +10,20 @@ import {
 } from 'recharts';
 import { 
   Film, Clock, TrendingUp, Calendar, AlertCircle, Plus, Trash2, 
-  BarChart3, Info, Star, Pencil, LogOut, Users, X
+  BarChart3, Info, Star, Pencil, LogOut, Users, X, Download, Archive, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, parseISO } from 'date-fns';
 import { Session, Stats } from './types';
-import { calculateStats, formatDuration, formatDurationDiff, formatTimeWasted } from './utils';
+import { calculateStats, formatDuration, formatDurationDiff, formatTimeWasted, exportSessionsToCSV } from './utils';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useAuth } from './hooks/useAuth';
 import { getSessions, addSession, updateSession, deleteSession as deleteSessionService } from './services/sessionService';
+import { moveToTrash, getTrashSessions, restoreFromTrash, permanentlyDelete } from './services/sessionService';
 import { HouseholdManager } from './components/HouseholdManager';
 import { getUserProfile } from './services/householdService';
+import { Landing } from './pages/Landing';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -41,19 +43,38 @@ export default function App() {
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [showHouseholdMenu, setShowHouseholdMenu] = useState(false);
   const [showAllSessions, setShowAllSessions] = useState(false);
+  const [chartTimeRange, setChartTimeRange] = useState<'all' | 'week' | 'month' | '3month'>('all');
+  const [showTrash, setShowTrash] = useState(false);
+  const [trashSessions, setTrashSessions] = useState<any[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
 
   // Calculate stats and chart data - MUST be before any early returns
   const stats = useMemo(() => calculateStats(sessions), [sessions]);
 
   const chartData = useMemo(() => {
-    return [...sessions]
+    // Filter sessions based on time range
+    const now = new Date();
+    let filteredSessions = sessions;
+    
+    if (chartTimeRange === 'week') {
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      filteredSessions = sessions.filter(s => new Date(s.date) >= weekAgo);
+    } else if (chartTimeRange === 'month') {
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      filteredSessions = sessions.filter(s => new Date(s.date) >= monthAgo);
+    } else if (chartTimeRange === '3month') {
+      const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      filteredSessions = sessions.filter(s => new Date(s.date) >= threeMonthsAgo);
+    }
+    
+    return [...filteredSessions]
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(s => ({
         date: format(parseISO(s.date), 'MMM dd'),
         duration: Number((s.duration_seconds / 60).toFixed(2)),
         title: s.title
       }));
-  }, [sessions]);
+  }, [sessions, chartTimeRange]);
 
   const { minDow, maxDow } = useMemo(() => {
     if (!stats?.dowAnalysis) return { minDow: null, maxDow: null };
@@ -128,6 +149,16 @@ export default function App() {
     }
   };
 
+  const fetchTrash = async () => {
+    if (!user) return;
+    try {
+      const data = await getTrashSessions(user.uid, householdId || undefined);
+      setTrashSessions(data);
+    } catch (err) {
+      console.error('Failed to fetch trash', err);
+    }
+  };
+
   const logSession = async () => {
     if (!duration || !user) return;
 
@@ -174,11 +205,32 @@ export default function App() {
   };
 
   const handleDeleteSession = async (id: string) => {
+    if (!user) return;
     try {
-      await deleteSessionService(id);
+      await moveToTrash(id, user.uid);
       fetchSessions();
+      setDeleteConfirm(null);
     } catch (err) {
-      console.error('Delete failed', err);
+      console.error('Move to trash failed', err);
+    }
+  };
+
+  const handleRestore = async (trashId: string, sessionData: any) => {
+    try {
+      await restoreFromTrash(trashId, sessionData);
+      fetchSessions();
+      fetchTrash();
+    } catch (err) {
+      console.error('Restore failed', err);
+    }
+  };
+
+  const handlePermanentDelete = async (trashId: string) => {
+    try {
+      await permanentlyDelete(trashId);
+      fetchTrash();
+    } catch (err) {
+      console.error('Permanent delete failed', err);
     }
   };
 
@@ -194,26 +246,7 @@ export default function App() {
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-bg text-accent flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <h1 className="text-6xl font-serif italic tracking-tighter mb-4">FilmFlow</h1>
-          <p className="text-sm font-mono opacity-50 uppercase tracking-widest mb-8">Decision Analytics Engine</p>
-          <button 
-            onClick={signIn}
-            className="bg-accent text-bg px-8 py-4 rounded-full flex items-center gap-3 hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg mx-auto"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-            <span className="text-sm font-bold uppercase tracking-widest">Sign in with Google</span>
-          </button>
-        </div>
-      </div>
-    );
+    return <Landing onGetStarted={signIn} />;
   }
 
   if (dataLoading) {
@@ -246,50 +279,80 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-bg text-accent font-sans selection:bg-accent selection:text-bg relative">
+    <div className="min-h-screen bg-bg text-accent font-sans selection:bg-accent selection:text-bg relative overflow-x-hidden w-full max-w-full">
       <div className="film-grain"></div>
       {/* Header */}
-      <header className="border-b border-border p-8 flex justify-between items-end relative z-10">
-        <div>
-          <h1 className="text-5xl font-serif italic tracking-tighter leading-none">FilmFlow</h1>
-          <p className="text-[10px] font-mono opacity-40 uppercase tracking-[0.5em] mt-3">Decision Analytics Engine</p>
-        </div>
-        <div className="flex items-center gap-4">
-          {user?.photoURL && (
-            <img 
-              src={user.photoURL} 
-              alt={user.displayName || 'User'} 
-              className="w-10 h-10 rounded-full border-2 border-accent/20"
-            />
-          )}
-          {user?.displayName && (
-            <span className="text-xs font-mono opacity-60 hidden sm:block">{user.displayName}</span>
-          )}
-          <button 
-            onClick={() => setShowForm(true)}
-            className="bg-accent text-bg px-8 py-3 rounded-full flex items-center gap-3 hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg shadow-white/5"
-          >
-            <Plus size={16} />
-            <span className="text-xs font-bold uppercase tracking-widest">Add Session</span>
-          </button>
-          <button 
-            onClick={() => setShowHouseholdMenu(true)}
-            className="p-3 rounded-full hover:bg-accent/10 transition-all duration-300"
-            title="Household settings"
-          >
-            <Users size={18} />
-          </button>
-          <button 
-            onClick={signOut}
-            className="p-3 rounded-full hover:bg-accent/10 transition-all duration-300"
-            title="Sign out"
-          >
-            <LogOut size={18} />
-          </button>
+      <header className="border-b border-border p-4 sm:p-8 relative z-10 w-full max-w-full">
+        <div className="flex flex-col gap-4 w-full">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex-shrink-0">
+              <h1 className="text-4xl sm:text-5xl font-serif italic tracking-tighter leading-none">FilmFlow</h1>
+              <p className="text-[10px] font-mono opacity-40 uppercase tracking-[0.5em] mt-3">Decision Analytics Engine</p>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
+            <div className="flex items-center gap-2 flex-1">
+              <button 
+                onClick={() => setShowForm(true)}
+                className="bg-accent text-bg px-6 sm:px-8 py-3 rounded-full flex items-center gap-2 sm:gap-3 hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg shadow-white/5 cursor-pointer flex-1 sm:flex-none justify-center"
+              >
+                <Plus size={16} />
+                <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">Add Session</span>
+              </button>
+              
+              {user?.photoURL && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-accent/10 transition-all cursor-pointer" title={user.displayName || 'Account'}>
+                  <img 
+                    src={user.photoURL} 
+                    alt={user.displayName || 'User'} 
+                    className="w-8 h-8 rounded-full border-2 border-accent/20"
+                  />
+                  {user?.displayName && (
+                    <span className="text-xs font-mono opacity-60 hidden md:block">{user.displayName}</span>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-2">
+              <button 
+                onClick={() => exportSessionsToCSV(sessions)}
+                className="p-3 rounded-full hover:bg-accent/10 transition-all duration-300 cursor-pointer flex-1 sm:flex-none min-w-[44px] justify-center flex items-center"
+                title="Export to CSV"
+              >
+                <Download size={18} />
+              </button>
+              <button 
+                onClick={() => {
+                  setShowTrash(true);
+                  fetchTrash();
+                }}
+                className="p-3 rounded-full hover:bg-accent/10 transition-all duration-300 cursor-pointer flex-1 sm:flex-none min-w-[44px] justify-center flex items-center"
+                title="View trash"
+              >
+                <Archive size={18} />
+              </button>
+              <button 
+                onClick={() => setShowHouseholdMenu(true)}
+                className="p-3 rounded-full hover:bg-accent/10 transition-all duration-300 cursor-pointer flex-1 sm:flex-none min-w-[44px] justify-center flex items-center"
+                title="Household settings"
+              >
+                <Users size={18} />
+              </button>
+              <button 
+                onClick={signOut}
+                className="p-3 rounded-full hover:bg-accent/10 transition-all duration-300 cursor-pointer flex-1 sm:flex-none min-w-[44px] justify-center flex items-center"
+                title="Sign out"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="p-8 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+      <main className="p-4 sm:p-8 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8 relative z-10 w-full max-w-full">
         {/* Stats Grid */}
         <section className="lg:col-span-12 grid grid-cols-1 md:grid-cols-5 gap-6">
           <StatCard 
@@ -326,11 +389,55 @@ export default function App() {
 
         {/* Main Charts */}
         <div className="lg:col-span-8 space-y-8">
-          <div className="bg-card/40 backdrop-blur-[10px] border border-white/5 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden">
-            <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] opacity-30 mb-8 flex items-center gap-2">
-              <TrendingUp size={12} /> Duration History (min)
-            </h3>
-            <div className="h-[320px]">
+          <div className="bg-card/40 backdrop-blur-[10px] border border-white/5 p-4 sm:p-8 rounded-[2rem] shadow-2xl relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8">
+              <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] opacity-30 flex items-center gap-2">
+                <TrendingUp size={12} /> Duration History (min)
+              </h3>
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => setChartTimeRange('week')}
+                  className={`px-3 py-1 text-[9px] font-mono uppercase tracking-widest rounded-lg transition-all ${
+                    chartTimeRange === 'week' 
+                      ? 'bg-accent text-bg' 
+                      : 'bg-accent/10 text-accent/60 hover:bg-accent/20'
+                  }`}
+                >
+                  Week
+                </button>
+                <button
+                  onClick={() => setChartTimeRange('month')}
+                  className={`px-3 py-1 text-[9px] font-mono uppercase tracking-widest rounded-lg transition-all ${
+                    chartTimeRange === 'month' 
+                      ? 'bg-accent text-bg' 
+                      : 'bg-accent/10 text-accent/60 hover:bg-accent/20'
+                  }`}
+                >
+                  Month
+                </button>
+                <button
+                  onClick={() => setChartTimeRange('3month')}
+                  className={`px-3 py-1 text-[9px] font-mono uppercase tracking-widest rounded-lg transition-all ${
+                    chartTimeRange === '3month' 
+                      ? 'bg-accent text-bg' 
+                      : 'bg-accent/10 text-accent/60 hover:bg-accent/20'
+                  }`}
+                >
+                  3 Months
+                </button>
+                <button
+                  onClick={() => setChartTimeRange('all')}
+                  className={`px-3 py-1 text-[9px] font-mono uppercase tracking-widest rounded-lg transition-all ${
+                    chartTimeRange === 'all' 
+                      ? 'bg-accent text-bg' 
+                      : 'bg-accent/10 text-accent/60 hover:bg-accent/20'
+                  }`}
+                >
+                  All
+                </button>
+              </div>
+            </div>
+            <div className="h-[320px] w-full min-w-0">
               {chartData.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
                   <p className="text-xs font-mono opacity-20 uppercase tracking-widest">No data to display</p>
@@ -407,15 +514,15 @@ export default function App() {
             </div>
           </div>
 
-          <div className="bg-card/40 backdrop-blur-[10px] border border-white/5 p-8 rounded-[2rem]">
-            <div className="flex justify-between items-start mb-8">
+          <div className="bg-card/40 backdrop-blur-[10px] border border-white/5 p-4 sm:p-8 rounded-[2rem]">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8">
               <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] opacity-30">Temporal Distribution (min)</h3>
-              <div className="flex gap-4 text-[9px] font-mono uppercase tracking-widest">
+              <div className="flex flex-wrap gap-2 sm:gap-4 text-[9px] font-mono uppercase tracking-widest">
                 {minDow && <span className="text-emerald-500">Shortest: {minDow.substring(0, 3)}</span>}
                 {maxDow && <span className="text-red-500">Longest: {maxDow.substring(0, 3)}</span>}
               </div>
             </div>
-            <div className="h-[220px]">
+            <div className="h-[220px] w-full min-w-0">
               {!stats?.dowAnalysis || stats.dowAnalysis.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
                   <p className="text-xs font-mono opacity-20 uppercase tracking-widest">No data to display</p>
@@ -488,13 +595,13 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => startEdit(session)}
-                    className="p-2 opacity-0 group-hover:opacity-100 hover:bg-accent/10 hover:text-accent rounded-xl transition-all"
+                    className="p-2 opacity-60 hover:opacity-100 hover:bg-accent/10 hover:text-accent rounded-xl transition-all"
                   >
                     <Pencil size={14} />
                   </button>
                   <button 
-                    onClick={() => handleDeleteSession(session.id)}
-                    className="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-all"
+                    onClick={() => setDeleteConfirm({ id: session.id, title: session.title })}
+                    className="p-2 opacity-60 hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-all"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -642,6 +749,142 @@ export default function App() {
                 >
                   {editingSession ? 'Save Changes' : 'Finalize Entry'}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeleteConfirm(null)}
+              className="absolute inset-0 bg-bg/90 backdrop-blur-xl"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 40 }}
+              className="relative bg-card border border-red-500/20 w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(239,68,68,0.3)]"
+            >
+              <div className="p-10 border-b border-border">
+                <h2 className="text-3xl font-serif italic tracking-tighter text-red-500">Delete Session?</h2>
+                <p className="text-[10px] font-mono opacity-30 uppercase tracking-widest mt-2">This will move to trash</p>
+              </div>
+
+              <div className="p-10 space-y-6">
+                <p className="text-sm opacity-70">
+                  Are you sure you want to delete <span className="font-serif italic text-accent">"{deleteConfirm.title}"</span>?
+                  It will be moved to trash and can be recovered within 30 days.
+                </p>
+
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setDeleteConfirm(null)}
+                    className="flex-1 bg-accent/10 text-accent py-4 rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-accent/20 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSession(deleteConfirm.id)}
+                    className="flex-1 bg-red-500 text-white py-4 rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-red-600 transition-all"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Trash Modal */}
+      <AnimatePresence>
+        {showTrash && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowTrash(false)}
+              className="absolute inset-0 bg-bg/90 backdrop-blur-xl"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 40 }}
+              className="relative bg-card border border-border w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] max-h-[80vh] flex flex-col"
+            >
+              <div className="p-10 border-b border-border flex justify-between items-start">
+                <div>
+                  <h2 className="text-4xl font-serif italic tracking-tighter">Trash</h2>
+                  <p className="text-[10px] font-mono opacity-30 uppercase tracking-widest mt-2">Deleted sessions (30 day retention)</p>
+                </div>
+                <button
+                  onClick={() => setShowTrash(false)}
+                  className="p-2 hover:bg-accent/10 rounded-xl transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-10 space-y-4 overflow-y-auto">
+                {trashSessions.length === 0 ? (
+                  <div className="text-center py-20 border-2 border-dashed border-border rounded-[2rem]">
+                    <Archive className="mx-auto opacity-10 mb-4" size={40} />
+                    <p className="text-[10px] font-mono uppercase tracking-widest opacity-20">Trash is empty</p>
+                  </div>
+                ) : (
+                  trashSessions.map(session => (
+                    <motion.div
+                      layout
+                      key={session.id}
+                      className="bg-card/40 backdrop-blur-[10px] border border-white/5 p-5 rounded-2xl"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1 flex-1">
+                          <h4 className="font-serif text-2xl tracking-tight">{session.title}</h4>
+                          <div className="flex items-center gap-4">
+                            <span className="text-xs font-mono font-bold uppercase opacity-50 tracking-widest">
+                              {format(parseISO(session.date), 'MMM dd')}
+                            </span>
+                            <span className="text-xs font-mono font-bold uppercase text-accent tracking-widest">
+                              {formatDuration(session.duration_seconds)}
+                            </span>
+                            <span className="text-[9px] font-mono opacity-30">
+                              Deleted {format(parseISO(session.deletedAt), 'MMM dd, yyyy')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleRestore(session.id, session)}
+                            className="p-2 opacity-60 hover:opacity-100 hover:bg-green-500/10 hover:text-green-500 rounded-xl transition-all"
+                            title="Restore"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm('Permanently delete this session? This cannot be undone.')) {
+                                handlePermanentDelete(session.id);
+                              }
+                            }}
+                            className="p-2 opacity-60 hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-all"
+                            title="Delete permanently"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
               </div>
             </motion.div>
           </div>

@@ -1,0 +1,155 @@
+{
+  "household": {
+    "name": "The Movie Buffs",
+    "inviteCode": "DEMO42",
+    "createdAt": "2025-02-16T10:00:00.000Z"
+  },
+  "users": [
+    {
+      "id": "user_emma_chen",
+      "email": "emma.chen@example.com",
+      "displayName": "Emma Chen",
+      "photoURL": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop"
+    },
+    {
+      "id": "user_marcus_rivera",
+      "email": "marcus.rivera@example.com",
+      "displayName": "Marcus Rivera",
+      "photoURL": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop"
+    },
+    {
+      "id": "user_sofia_patel",
+      "email": "sofia.patel@example.com",
+      "displayName": "Sofia Patel",
+      "photoURL": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop"
+    },
+    {
+      "id": "user_james_kim",
+      "email": "james.kim@example.com",
+      "displayName": "James Kim",
+      "photoURL": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop"
+    }
+  ],
+  "sessions": [
+    {
+      "title": "The Grand Budapest Hotel",
+      "duration_seconds": 420,
+      "rating": 9,
+      "date": "2025-03-17",
+      "genre": "Drama",
+      "release_year": 2014
+    },
+    {
+      "title": "Inception",
+      "duration_seconds": 780,
+      "rating": 8,
+      "date": "2025-03-17",
+      "genre": "Sci-Fi",
+      "release_year": 2010
+    },
+    {
+      "title": "Parasite",
+      "duration_seconds": 540,
+      "rating": 10,
+      "date": "2025-03-17",
+      "genre": "Thriller",
+      "release_year": 2019
+    },
+    {
+      "title": "Moonlight",
+      "duration_seconds": 360,
+      "rating": 9,
+      "date": "2025-03-16",
+      "genre": "Drama",
+      "release_year": 2016
+    },
+    {
+      "title": "Everything Everywhere All at Once",
+      "duration_seconds": 660,
+      "rating": 10,
+      "date": "2025-03-16",
+      "genre": "Sci-Fi",
+      "release_year": 2022
+    },
+    {
+      "title": "The Shawshank Redemption",
+      "duration_seconds": 300,
+      "rating": 9,
+      "date": "2025-03-16",
+      "genre": "Drama",
+      "release_year": 1994
+    },
+    {
+      "title": "Spirited Away",
+      "duration_seconds": 480,
+      "rating": 10,
+      "date": "2025-03-16",
+      "genre": "Animation",
+      "release_year": 2001
+    },
+    {
+      "title": "Amélie",
+      "duration_seconds": 390,
+      "rating": 8,
+      "date": "2025-03-16",
+      "genre": "Romance",
+      "release_year": 2001
+    },
+    {
+      "title": "The Social Network",
+      "duration_seconds": 720,
+      "rating": 7,
+      "date": "2025-03-17",
+      "genre": "Drama",
+      "release_year": 2010
+    },
+    {
+      "title": "Whiplash",
+      "duration_seconds": 510,
+      "rating": 9,
+      "date": "2025-03-17",
+      "genre": "Drama",
+      "release_year": 2014
+    },
+    {
+      "title": "Her",
+      "duration_seconds": 600,
+      "rating": 8,
+      "date": "2025-03-17",
+      "genre": "Romance",
+      "release_year": 2013
+    },
+    {
+      "title": "Mad Max: Fury Road",
+      "duration_seconds": 270,
+      "rating": 9,
+      "date": "2025-03-18",
+      "genre": "Action",
+      "release_year": 2015
+    },
+    {
+      "title": "The Lighthouse",
+      "duration_seconds": 840,
+      "rating": 7,
+      "date": "2025-03-18",
+      "genre": "Horror",
+      "release_year": 2019
+    },
+    {
+      "title": "Knives Out",
+      "duration_seconds": 450,
+      "rating": 8,
+      "date": "2025-03-18",
+      "genre": "Mystery",
+      "release_year": 2019
+    },
+    {
+      "title": "Portrait of a Lady on Fire",
+      "duration_seconds": 690,
+      "rating": 10,
+      "date": "2025-03-18",
+      "genre": "Romance",
+      "release_year": 2019
+    }
+  ]
+}

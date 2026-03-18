@@ -13,9 +13,23 @@
   --color-border: #1A1A1A;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-accent);
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* Ensure buttons don't exceed screen width on mobile */
+@media (max-width: 500px) {
+  button {
+    max-width: 100%;
+  }
 }
 
 .film-grain {
