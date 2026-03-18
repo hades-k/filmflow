@@ -11,14 +11,13 @@ A Progressive Web App that helps you understand your movie selection patterns, i
 
 ## 📸 Screenshots
 
-<!-- Add screenshots here after deployment -->
-*Coming soon - screenshots of the analytics dashboard, charts, and mobile views*
+<img width="1510" height="823" alt="Screenshot 2026-03-18 at 22 00 36" src="https://github.com/user-attachments/assets/999a6c29-706f-4694-be92-374d7b421dc0" />
 
-## 🎯 Demo
+<img width="1510" height="823" alt="Screenshot 2026-03-18 at 22 18 16" src="https://github.com/user-attachments/assets/3bc821dc-5777-46a4-aace-1ab4f8b82781" />
 
-🔗 **Live Demo**: [https://your-project-id.web.app](https://your-project-id.web.app)
+<img width="1510" height="823" alt="Screenshot 2026-03-18 at 22 18 20" src="https://github.com/user-attachments/assets/3f4cbe2c-1dc9-4d72-aca8-c22e698df6bc" />
 
-> Replace with your actual Firebase Hosting URL after deployment
+<img width="1510" height="823" alt="Screenshot 2026-03-18 at 22 18 39" src="https://github.com/user-attachments/assets/3220b554-81d0-4744-b5ef-0dc31ddf7de7" />
 
 ## ✨ Features
 
