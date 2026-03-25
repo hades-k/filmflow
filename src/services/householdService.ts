@@ -131,11 +131,15 @@ export async function leaveHousehold(userId: string, householdId: string): Promi
     members: arrayRemove(userId)
   });
   
-  // Remove household ID from user profile
+  // Remove household ID from user profile (delete the field instead of setting to null)
   const userRef = doc(db, USERS_COLLECTION, userId);
-  await updateDoc(userRef, {
-    householdId: null
-  });
+  const userDoc = await getDoc(userRef);
+  
+  if (userDoc.exists()) {
+    const userData = userDoc.data();
+    const { householdId: _, ...restData } = userData;
+    await setDoc(userRef, restData);
+  }
   
   // Check if household is empty and delete if so
   const householdDoc = await getDoc(householdRef);

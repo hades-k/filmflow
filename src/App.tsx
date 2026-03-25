@@ -3,19 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   BarChart, Bar, Cell, ReferenceLine
 } from 'recharts';
 import { 
   Film, Clock, TrendingUp, Calendar, AlertCircle, Plus, Trash2, 
-  BarChart3, Info, Star, Pencil, LogOut, Users, X, Download, Archive, RotateCcw
+  BarChart3, Info, Star, Pencil, LogOut, Users, X, Download, UploadCloud, Archive, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, parseISO } from 'date-fns';
 import { Session, Stats } from './types';
-import { calculateStats, formatDuration, formatDurationDiff, formatTimeWasted, exportSessionsToCSV } from './utils';
+import { calculateStats, formatDuration, formatDurationDiff, formatTimeWasted, exportSessionsToCSV, parseSessionsFromCSV } from './utils';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useAuth } from './hooks/useAuth';
@@ -41,12 +41,15 @@ export default function App() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'personal' | 'household'>('personal');
   const [showHouseholdMenu, setShowHouseholdMenu] = useState(false);
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [chartTimeRange, setChartTimeRange] = useState<'all' | 'week' | 'month' | '3month'>('all');
   const [showTrash, setShowTrash] = useState(false);
   const [trashSessions, setTrashSessions] = useState<any[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate stats and chart data - MUST be before any early returns
   const stats = useMemo(() => calculateStats(sessions), [sessions]);
@@ -112,9 +115,9 @@ export default function App() {
     const loadSessions = async () => {
       setDataLoading(true);
       try {
-        console.log('Fetching sessions for user:', user.uid, 'householdId:', householdId);
+        console.log('Fetching sessions for user:', user.uid, 'householdId:', householdId, 'tab:', activeTab);
         
-        const data = await getSessions(user.uid, householdId || undefined);
+        const data = await getSessions(user.uid, householdId || undefined, activeTab === 'personal');
         console.log('Sessions fetched:', data.length);
         if (mounted) {
           setSessions(data);
@@ -137,12 +140,12 @@ export default function App() {
     return () => {
       mounted = false;
     };
-  }, [user, householdId]);
+  }, [user, householdId, activeTab]);
 
   const fetchSessions = async () => {
     if (!user) return;
     try {
-      const data = await getSessions(user.uid, householdId || undefined);
+      const data = await getSessions(user.uid, householdId || undefined, activeTab === 'personal');
       setSessions(data);
     } catch (err) {
       console.error('Failed to fetch sessions', err);
@@ -165,20 +168,21 @@ export default function App() {
     const [mins, secs] = duration.split(':').map(Number);
     const durationSeconds = (mins || 0) * 60 + (secs || 0);
 
-    const sessionData = {
+    const sessionData: any = {
       date,
       duration_seconds: durationSeconds,
       title: title || 'Untitled',
       rating: rating ? parseInt(rating) : 0,
-      genre: 'Unknown',
-      release_year: null
+      genre: 'Unknown'
     };
+    
+    // Don't include release_year if it's null/undefined
 
     try {
       if (editingSession) {
         await updateSession(editingSession.id, sessionData);
       } else {
-        await addSession(user.uid, sessionData as any, householdId || undefined);
+        await addSession(user.uid, sessionData as any, (householdId && activeTab === 'household') ? householdId : undefined);
       }
       fetchSessions();
       closeForm();
@@ -231,6 +235,31 @@ export default function App() {
       fetchTrash();
     } catch (err) {
       console.error('Permanent delete failed', err);
+    }
+  };
+
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+    
+    try {
+      const text = await file.text();
+      const parsedSessions = parseSessionsFromCSV(text);
+      if (parsedSessions.length === 0) {
+        alert("No valid sessions found in CSV.");
+        return;
+      }
+      
+      await Promise.all(
+        parsedSessions.map(session => addSession(user.uid, session, (householdId && activeTab === 'household') ? householdId : undefined))
+      );
+      
+      alert(`Import Successful: ${parsedSessions.length} sessions added`);
+      fetchSessions();
+    } catch (err: any) {
+      alert(`Error: ${err.message || "Invalid CSV format"}`);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -316,6 +345,20 @@ export default function App() {
             </div>
             
             <div className="flex flex-wrap items-center gap-2">
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                accept=".csv" 
+                onChange={handleImportCSV} 
+                className="hidden" 
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="p-3 rounded-full hover:bg-accent/10 transition-all duration-300 cursor-pointer flex-1 sm:flex-none min-w-[44px] justify-center flex items-center"
+                title="Import from CSV"
+              >
+                <UploadCloud size={18} />
+              </button>
               <button 
                 onClick={() => exportSessionsToCSV(sessions)}
                 className="p-3 rounded-full hover:bg-accent/10 transition-all duration-300 cursor-pointer flex-1 sm:flex-none min-w-[44px] justify-center flex items-center"
@@ -350,6 +393,26 @@ export default function App() {
             </div>
           </div>
         </div>
+        
+        {householdId && (
+          <div className="flex justify-center mt-6 w-full max-w-md mx-auto p-1 bg-accent/5 rounded-full border border-accent/10 relative">
+            <button 
+              onClick={() => setActiveTab('personal')}
+              className={`flex-1 py-2 px-4 rounded-full text-xs font-mono uppercase tracking-widest transition-all z-10 ${activeTab === 'personal' ? 'text-bg' : 'text-accent opacity-50 hover:opacity-100 cursor-pointer'}`}
+            >
+              Personal
+            </button>
+            <button 
+              onClick={() => setActiveTab('household')}
+              className={`flex-1 py-2 px-4 rounded-full text-xs font-mono uppercase tracking-widest transition-all z-10 ${activeTab === 'household' ? 'text-bg' : 'text-accent opacity-50 hover:opacity-100 cursor-pointer'}`}
+            >
+              Household
+            </button>
+            <div 
+              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-accent rounded-full transition-all duration-300 ease-in-out ${activeTab === 'personal' ? 'left-1' : 'left-[calc(50%+2px)]'}`}
+            />
+          </div>
+        )}
       </header>
 
       <main className="p-4 sm:p-8 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8 relative z-10 w-full max-w-full">

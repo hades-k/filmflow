@@ -16,28 +16,9 @@ import { Session } from '../types';
 const SESSIONS_COLLECTION = 'sessions';
 const TRASH_COLLECTION = 'trash';
 
-export async function getSessions(userId: string, householdId?: string): Promise<Session[]> {
+export async function getSessions(userId: string, householdId?: string, isPersonalTab: boolean = true): Promise<Session[]> {
   try {
-    let q;
-    
-    if (householdId) {
-      // Get all sessions for the household
-      q = query(
-        collection(db, SESSIONS_COLLECTION),
-        where('householdId', '==', householdId),
-        orderBy('date', 'desc')
-      );
-    } else {
-      // Get only user's personal sessions (and sessions without householdId)
-      q = query(
-        collection(db, SESSIONS_COLLECTION),
-        where('userId', '==', userId),
-        orderBy('date', 'desc')
-      );
-    }
-    
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
+    const mapDoc = (doc: any) => {
       const data = doc.data() as any;
       return {
         id: doc.id,
@@ -51,10 +32,38 @@ export async function getSessions(userId: string, householdId?: string): Promise
         householdId: data.householdId,
         created_at: data.created_at?.toDate?.()?.toISOString() || new Date().toISOString()
       } as Session;
-    });
+    };
+
+    if (householdId && isPersonalTab) {
+      // Aggregate: Personal + Household
+      const personalQuery = query(collection(db, SESSIONS_COLLECTION), where('userId', '==', userId));
+      const householdQuery = query(collection(db, SESSIONS_COLLECTION), where('householdId', '==', householdId));
+      
+      const [personalSnap, householdSnap] = await Promise.all([getDocs(personalQuery), getDocs(householdQuery)]);
+      
+      const map = new Map<string, Session>();
+      personalSnap.docs.forEach(doc => map.set(doc.id, mapDoc(doc)));
+      householdSnap.docs.forEach(doc => map.set(doc.id, mapDoc(doc)));
+      
+      const sessions = Array.from(map.values());
+      // Sort DESC by date
+      sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return sessions;
+    } else {
+      let q;
+      if (householdId) {
+        // strictly household
+        q = query(collection(db, SESSIONS_COLLECTION), where('householdId', '==', householdId), orderBy('date', 'desc'));
+      } else {
+        // strictly personal
+        q = query(collection(db, SESSIONS_COLLECTION), where('userId', '==', userId), orderBy('date', 'desc'));
+      }
+      
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(mapDoc);
+    }
   } catch (error: any) {
     console.error('Error fetching sessions:', error);
-    // If it's an index error, return empty array for now
     if (error.code === 'failed-precondition' || error.message?.includes('index')) {
       console.warn('Firestore index needed. Returning empty array.');
       return [];
@@ -64,12 +73,18 @@ export async function getSessions(userId: string, householdId?: string): Promise
 }
 
 export async function addSession(userId: string, sessionData: Omit<Session, 'id' | 'created_at'>, householdId?: string) {
-  return await addDoc(collection(db, SESSIONS_COLLECTION), {
+  const dataToWrite: any = {
     ...sessionData,
     userId,
-    householdId: householdId || null,
     created_at: Timestamp.now()
-  });
+  };
+  
+  // Only add householdId if it exists (don't write null/undefined)
+  if (householdId) {
+    dataToWrite.householdId = householdId;
+  }
+  
+  return await addDoc(collection(db, SESSIONS_COLLECTION), dataToWrite);
 }
 
 export async function updateSession(sessionId: string, sessionData: Partial<Session>) {

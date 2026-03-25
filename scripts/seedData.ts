@@ -2,31 +2,39 @@
  * Seed Script for FilmFlow
  * Populates the database with realistic sample data for screenshots
  * 
+ * IMPORTANT: This script requires Firebase Admin SDK to bypass security rules
  * Run with: npx tsx scripts/seedData.ts
+ * 
+ * Prerequisites:
+ * 1. Install: npm install firebase-admin dotenv
+ * 2. Download service account key from Firebase Console
+ * 3. Set GOOGLE_APPLICATION_CREDENTIALS in .env
  */
 
-import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  Timestamp,
-  doc,
-  setDoc
-} from 'firebase/firestore';
+import * as admin from 'firebase-admin';
+import * as dotenv from 'dotenv';
 
-// Firebase config - you'll need to add your config here
-const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY,
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.VITE_FIREBASE_APP_ID
-};
+// Load environment variables
+dotenv.config();
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Initialize Firebase Admin SDK
+const serviceAccount = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
+if (!serviceAccount) {
+  console.error('❌ Error: GOOGLE_APPLICATION_CREDENTIALS not set in .env');
+  console.log('\n📝 To fix this:');
+  console.log('1. Go to Firebase Console > Project Settings > Service Accounts');
+  console.log('2. Click "Generate New Private Key"');
+  console.log('3. Save the JSON file to your project root');
+  console.log('4. Add to .env: GOOGLE_APPLICATION_CREDENTIALS=./path-to-service-account.json');
+  process.exit(1);
+}
+
+admin.initializeApp({
+  credential: admin.credential.cert(require(serviceAccount))
+});
+
+const db = admin.firestore();
 
 // Realistic movie titles with decision times
 const movieSessions = [
@@ -81,10 +89,10 @@ async function seedDatabase() {
   try {
     // 1. Create Sample Household
     console.log('📦 Creating Sample Household...');
-    const householdRef = await addDoc(collection(db, 'households'), {
+    const householdRef = await db.collection('households').add({
       name: 'The Movie Buffs',
       createdBy: sampleUsers[0].id,
-      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+      createdAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
       members: sampleUsers.map(u => u.id),
       inviteCode: 'DEMO42'
     });
@@ -94,11 +102,11 @@ async function seedDatabase() {
     // 2. Create User Profiles
     console.log('👥 Creating user profiles...');
     for (const user of sampleUsers) {
-      await setDoc(doc(db, 'users', user.id), {
+      await db.collection('users').doc(user.id).set({
         email: user.email,
         displayName: user.displayName,
         householdId: householdId,
-        createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString()
+        createdAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() - 25 * 24 * 60 * 60 * 1000))
       });
       console.log(`  ✓ ${user.displayName}`);
     }
@@ -118,17 +126,21 @@ async function seedDatabase() {
       const randomTime = twoDaysAgo + Math.random() * (now - twoDaysAgo);
       const sessionDate = new Date(randomTime);
       
-      await addDoc(collection(db, 'sessions'), {
+      const sessionData: any = {
         title: movie.title,
         duration_seconds: movie.duration,
         rating: movie.rating,
         date: sessionDate.toISOString().split('T')[0],
         userId: randomUser.id,
         householdId: householdId,
-        created_at: Timestamp.fromDate(sessionDate),
-        genre: 'Drama',
-        release_year: 2020 + Math.floor(Math.random() * 4)
-      });
+        created_at: admin.firestore.Timestamp.fromDate(sessionDate)
+      };
+      
+      // Only add optional fields if they have values
+      if (movie.duration) sessionData.genre = 'Drama';
+      if (movie.duration) sessionData.release_year = 2020 + Math.floor(Math.random() * 4);
+      
+      await db.collection('sessions').add(sessionData);
       
       sessionCount++;
       console.log(`  ✓ Session ${sessionCount}: ${movie.title} (${randomUser.displayName})`);

@@ -160,3 +160,87 @@ export const exportSessionsToCSV = (sessions: Session[]): void => {
   link.click();
   document.body.removeChild(link);
 };
+
+export const parseSessionsFromCSV = (csvText: string): Omit<Session, 'id' | 'created_at' | 'userId' | 'householdId'>[] => {
+  const lines = csvText.trim().split('\n');
+  if (lines.length <= 1) throw new Error("CSV file is empty or missing data.");
+
+  // Parse header
+  const headerRow = lines[0].split(',').map(h => h.trim());
+  const dateIdx = headerRow.indexOf('Date');
+  const titleIdx = headerRow.indexOf('Title');
+  const durationMMSSIdx = headerRow.indexOf('Duration (MM:SS)');
+  const durationSecIdx = headerRow.indexOf('Duration (seconds)');
+  const ratingIdx = headerRow.indexOf('Rating');
+  const genreIdx = headerRow.indexOf('Genre');
+  const releaseYearIdx = headerRow.indexOf('Release Year');
+
+  if (dateIdx === -1) throw new Error("CSV is missing the required 'Date' column.");
+  if (durationMMSSIdx === -1 && durationSecIdx === -1) throw new Error("CSV is missing a 'Duration' column.");
+
+  const parsedSessions = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Simple CSV row parser handling quotes
+    const cols = [];
+    let inQuotes = false;
+    let currentVal = "";
+    
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j];
+      if (char === '"' && line[j+1] === '"') {
+        currentVal += '"';
+        j++; // skip escaped quote marker
+      } else if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        cols.push(currentVal);
+        currentVal = "";
+      } else {
+        currentVal += char;
+      }
+    }
+    cols.push(currentVal); // push remainder
+
+    const dateVal = cols[dateIdx]?.trim();
+    if (!dateVal) throw new Error(`Row ${i + 1} is missing a Date.`);
+
+    let durationSecs = 0;
+    if (durationSecIdx !== -1 && cols[durationSecIdx]?.trim()) {
+      durationSecs = parseInt(cols[durationSecIdx].trim(), 10);
+    } else if (durationMMSSIdx !== -1 && cols[durationMMSSIdx]?.trim()) {
+      const parts = cols[durationMMSSIdx].trim().split(':');
+      if (parts.length === 2 && !isNaN(parseInt(parts[0], 10)) && !isNaN(parseInt(parts[1], 10))) {
+        durationSecs = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+      } else {
+        throw new Error(`Row ${i + 1} has invalid duration format (expected MM:SS).`);
+      }
+    } else {
+      throw new Error(`Row ${i + 1} is missing a duration.`);
+    }
+
+    const rawTitle = titleIdx !== -1 && cols[titleIdx]?.trim() ? cols[titleIdx].trim() : 'Unknown';
+    const cleanTitle = rawTitle.startsWith('"') && rawTitle.endsWith('"') ? rawTitle.slice(1, -1) : rawTitle;
+
+    const ratingVal = ratingIdx !== -1 && cols[ratingIdx]?.trim() ? parseInt(cols[ratingIdx].trim(), 10) : 0;
+    const genreVal = genreIdx !== -1 && cols[genreIdx]?.trim() ? cols[genreIdx].trim() : 'Unknown';
+    
+    const releaseYearVal = releaseYearIdx !== -1 && cols[releaseYearIdx]?.trim() 
+      ? parseInt(cols[releaseYearIdx].trim(), 10) 
+      : undefined;
+
+    parsedSessions.push({
+      date: dateVal,
+      title: cleanTitle,
+      duration_seconds: durationSecs,
+      rating: isNaN(ratingVal) ? 0 : ratingVal,
+      genre: genreVal,
+      ...(releaseYearVal && !isNaN(releaseYearVal) ? { release_year: releaseYearVal } : {})
+    });
+  }
+
+  return parsedSessions;
+};

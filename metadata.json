@@ -1,5 +1,0 @@
-{
-  "name": "FilmFlow Analytics Engine",
-  "description": "Track movie-picking sessions, analyze decision fatigue, and visualize picking trends with TMDb integration.",
-  "requestFramePermissions": []
-}

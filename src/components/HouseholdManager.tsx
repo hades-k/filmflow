@@ -73,6 +73,11 @@ export function HouseholdManager({ userId, userEmail, userDisplayName, onHouseho
     try {
       setError(null);
       const householdId = await createHousehold(userId, householdName);
+      
+      if (window.confirm('Would you like to import your existing personal sessions into this Household?')) {
+        await importPersonalSessionsToHousehold(userId, householdId);
+      }
+      
       await loadHouseholdData();
       setShowCreateForm(false);
       setHouseholdName('');
@@ -90,7 +95,12 @@ export function HouseholdManager({ userId, userEmail, userDisplayName, onHouseho
 
     try {
       setError(null);
-      await joinHouseholdByCode(userId, inviteCode);
+      const householdId = await joinHouseholdByCode(userId, inviteCode);
+      
+      if (window.confirm('Would you like to import your existing personal sessions into this Household?')) {
+        await importPersonalSessionsToHousehold(userId, householdId);
+      }
+      
       await loadHouseholdData();
       setShowJoinForm(false);
       setInviteCode('');

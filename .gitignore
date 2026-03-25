@@ -12,6 +12,7 @@ coverage/
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+*-service-account.json
 
 # SQLite (no longer needed)
 *.db
@@ -26,3 +27,10 @@ TODO.md
 GITHUB_SAFETY_CHECKLIST.md
 generate-icons.md
 SAMPLE_DATA_GUIDE.md
+HOUSEHOLD_FEATURE.md
+SECURITY_NOTE.md
+
+# Old server files
+server.ts
+metadata.json
+

@@ -41,7 +41,7 @@ service cloud.firestore {
       // 2. Session belongs to user's household and user is a member
       allow read: if request.auth != null && (
         request.auth.uid == resource.data.userId ||
-        (resource.data.householdId != null && isHouseholdMember(resource.data.householdId))
+        (resource.data.get('householdId', null) != null && isHouseholdMember(resource.data.householdId))
       );
       
       // Allow write (update/delete) if:
@@ -49,7 +49,7 @@ service cloud.firestore {
       // 2. Session belongs to user's household and user is a member
       allow write: if request.auth != null && (
         request.auth.uid == resource.data.userId ||
-        (resource.data.householdId != null && isHouseholdMember(resource.data.householdId))
+        (resource.data.get('householdId', null) != null && isHouseholdMember(resource.data.householdId))
       );
       
       // Allow create if:
@@ -57,7 +57,7 @@ service cloud.firestore {
       // 2. If householdId is set, user must be a member of that household
       allow create: if request.auth != null && 
                        request.auth.uid == request.resource.data.userId &&
-                       (request.resource.data.householdId == null || 
+                       (request.resource.data.get('householdId', null) == null || 
                         isHouseholdMember(request.resource.data.householdId));
     }
     
@@ -68,7 +68,7 @@ service cloud.firestore {
       // 2. Session belongs to user's household and user is a member
       allow read: if request.auth != null && (
         request.auth.uid == resource.data.userId ||
-        (resource.data.householdId != null && isHouseholdMember(resource.data.householdId))
+        (resource.data.get('householdId', null) != null && isHouseholdMember(resource.data.householdId))
       );
       
       // Allow write (update/delete/restore) if:
@@ -76,7 +76,7 @@ service cloud.firestore {
       // 2. Session belongs to user's household and user is a member
       allow write: if request.auth != null && (
         request.auth.uid == resource.data.userId ||
-        (resource.data.householdId != null && isHouseholdMember(resource.data.householdId))
+        (resource.data.get('householdId', null) != null && isHouseholdMember(resource.data.householdId))
       );
       
       // Allow create if user is authenticated

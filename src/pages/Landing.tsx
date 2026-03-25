@@ -13,7 +13,7 @@ export function Landing({ onGetStarted }: LandingProps) {
       <nav className="fixed top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-50">
         <div className="max-w-7xl mx-auto bg-card/80 backdrop-blur-xl border border-white/10 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center shadow-2xl">
           <div className="flex items-center gap-2">
-            <Film className="w-5 h-5 sm:w-6 sm:h-6" />
+            <img src="/logo.png" alt="FilmFlow Logo" className="w-6 h-6 sm:w-8 sm:h-8 rounded shadow-sm" />
             <span className="text-lg sm:text-xl font-serif italic tracking-tight">FilmFlow</span>
           </div>
         </div>
@@ -112,7 +112,7 @@ export function Landing({ onGetStarted }: LandingProps) {
       <footer className="py-8 sm:py-12 px-4 sm:px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-2">
-            <Film className="w-5 h-5" />
+            <img src="/logo.png" alt="FilmFlow Logo" className="w-5 h-5 rounded shadow-sm" />
             <span className="font-serif italic">FilmFlow</span>
           </div>
           <div className="text-xs text-accent/40 uppercase tracking-widest text-center">
