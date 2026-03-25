@@ -48,6 +48,12 @@ export default function App() {
   const [showTrash, setShowTrash] = useState(false);
   const [trashSessions, setTrashSessions] = useState<any[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+  
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage({ message, type });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -149,6 +155,7 @@ export default function App() {
       setSessions(data);
     } catch (err) {
       console.error('Failed to fetch sessions', err);
+      showToast('Failed to load sessions', 'error');
     }
   };
 
@@ -159,6 +166,7 @@ export default function App() {
       setTrashSessions(data);
     } catch (err) {
       console.error('Failed to fetch trash', err);
+      showToast('Failed to load trash', 'error');
     }
   };
 
@@ -168,7 +176,7 @@ export default function App() {
     const [mins, secs] = duration.split(':').map(Number);
     const durationSeconds = (mins || 0) * 60 + (secs || 0);
 
-    const sessionData: any = {
+    const sessionData: Omit<Session, 'id' | 'created_at'> = {
       date,
       duration_seconds: durationSeconds,
       title: title || 'Untitled',
@@ -181,13 +189,16 @@ export default function App() {
     try {
       if (editingSession) {
         await updateSession(editingSession.id, sessionData);
+        showToast('Session updated successfully');
       } else {
-        await addSession(user.uid, sessionData as any, (householdId && activeTab === 'household') ? householdId : undefined);
+        await addSession(user.uid, sessionData, (householdId && activeTab === 'household') ? householdId : undefined);
+        showToast('Session logged successfully');
       }
       fetchSessions();
       closeForm();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to log session', err);
+      showToast(err.message || 'Failed to preserve entry', 'error');
     }
   };
 
@@ -216,6 +227,7 @@ export default function App() {
       setDeleteConfirm(null);
     } catch (err) {
       console.error('Move to trash failed', err);
+      showToast('Failed to move to trash', 'error');
     }
   };
 
@@ -226,6 +238,7 @@ export default function App() {
       fetchTrash();
     } catch (err) {
       console.error('Restore failed', err);
+      showToast('Failed to restore session', 'error');
     }
   };
 
@@ -235,6 +248,7 @@ export default function App() {
       fetchTrash();
     } catch (err) {
       console.error('Permanent delete failed', err);
+      showToast('Failed to permanently delete', 'error');
     }
   };
 
@@ -246,7 +260,7 @@ export default function App() {
       const text = await file.text();
       const parsedSessions = parseSessionsFromCSV(text);
       if (parsedSessions.length === 0) {
-        alert("No valid sessions found in CSV.");
+        showToast("No valid sessions found in CSV.", 'error');
         return;
       }
       
@@ -254,10 +268,10 @@ export default function App() {
         parsedSessions.map(session => addSession(user.uid, session, (householdId && activeTab === 'household') ? householdId : undefined))
       );
       
-      alert(`Import Successful: ${parsedSessions.length} sessions added`);
+      showToast(`Import Successful: ${parsedSessions.length} sessions added`);
       fetchSessions();
     } catch (err: any) {
-      alert(`Error: ${err.message || "Invalid CSV format"}`);
+      showToast(`Error: ${err.message || "Invalid CSV format"}`, 'error');
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -951,6 +965,22 @@ export default function App() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border ${
+              toastMessage.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-green-500/10 border-green-500/20 text-green-500'
+            } flex items-center gap-3`}
+          >
+            {toastMessage.type === 'error' ? <AlertCircle size={20} /> : <Info size={20} />}
+            <span className="text-sm font-bold uppercase tracking-widest">{toastMessage.message}</span>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

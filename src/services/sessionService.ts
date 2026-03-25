@@ -8,6 +8,7 @@ import {
   where, 
   orderBy, 
   getDocs,
+  getDoc,
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -19,7 +20,7 @@ const TRASH_COLLECTION = 'trash';
 export async function getSessions(userId: string, householdId?: string, isPersonalTab: boolean = true): Promise<Session[]> {
   try {
     const mapDoc = (doc: any) => {
-      const data = doc.data() as any;
+      const data = doc.data() as Record<string, any>;
       return {
         id: doc.id,
         date: data.date,
@@ -89,7 +90,7 @@ export async function addSession(userId: string, sessionData: Omit<Session, 'id'
 
 export async function updateSession(sessionId: string, sessionData: Partial<Session>) {
   const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
-  const { id, created_at, ...updateData } = sessionData as any;
+  const { id, created_at, ...updateData } = sessionData as Partial<Session> & { created_at?: string };
   await updateDoc(sessionRef, updateData);
 }
 
@@ -101,10 +102,10 @@ export async function deleteSession(sessionId: string) {
 export async function moveToTrash(sessionId: string, userId: string) {
   // Get the session data
   const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
-  const sessionSnap = await getDocs(query(collection(db, SESSIONS_COLLECTION), where('__name__', '==', sessionId)));
+  const sessionSnap = await getDoc(sessionRef);
   
-  if (!sessionSnap.empty) {
-    const sessionData = sessionSnap.docs[0].data();
+  if (sessionSnap.exists()) {
+    const sessionData = sessionSnap.data();
     
     // Add to trash collection with deletion timestamp
     await addDoc(collection(db, TRASH_COLLECTION), {
@@ -139,7 +140,7 @@ export async function getTrashSessions(userId: string, householdId?: string): Pr
     
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => {
-      const data = doc.data() as any;
+      const data = doc.data() as Record<string, any>;
       return {
         id: doc.id,
         originalId: data.originalId,
